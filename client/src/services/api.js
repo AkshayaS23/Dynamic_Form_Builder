@@ -66,6 +66,29 @@ const api = {
     };
   },
 
+  async getStats() {
+    try {
+        const [forms, responses] = await Promise.all([
+        api.getForms(),
+        api.getAllResponses()
+        ]);
+
+        return {
+        totalForms: forms.length,
+        totalResponses: responses.length,
+        activeForms: forms.filter(f => f.status === 'active').length
+        };
+    } catch (error) {
+        console.error("Error fetching stats:", error);
+        return {
+        totalForms: 0,
+        totalResponses: 0,
+        activeForms: 0
+        };
+    }
+    },
+
+
   async createForm(data) {
     return await apiCall('/api/forms', {
       method: 'POST',
@@ -104,6 +127,8 @@ const api = {
   async healthCheck() {
     return await apiCall('/api/health');
   }
+
+  
 };
 
 export default api;
