@@ -1,7 +1,5 @@
 // API Service - Backend Integration with Express/MongoDB
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 // Helper function for API calls
 const apiCall = async (endpoint, options = {}) => {
@@ -27,6 +25,7 @@ const apiCall = async (endpoint, options = {}) => {
 };
 
 const api = {
+  // Get all forms
   async getForms() {
     const forms = await apiCall('/api/forms');
     return forms.map(form => ({
@@ -40,6 +39,7 @@ const api = {
     }));
   },
 
+  // Get single form
   async getForm(id) {
     const form = await apiCall(`/api/forms/${id}`);
     if (!form) return null;
@@ -66,29 +66,7 @@ const api = {
     };
   },
 
-  async getStats() {
-    try {
-        const [forms, responses] = await Promise.all([
-        api.getForms(),
-        api.getAllResponses()
-        ]);
-
-        return {
-        totalForms: forms.length,
-        totalResponses: responses.length,
-        activeForms: forms.filter(f => f.status === 'active').length
-        };
-    } catch (error) {
-        console.error("Error fetching stats:", error);
-        return {
-        totalForms: 0,
-        totalResponses: 0,
-        activeForms: 0
-        };
-    }
-    },
-
-
+  // Create form
   async createForm(data) {
     return await apiCall('/api/forms', {
       method: 'POST',
@@ -96,6 +74,7 @@ const api = {
     });
   },
 
+  // Update form
   async updateForm(id, data) {
     return await apiCall(`/api/forms/${id}`, {
       method: 'PUT',
@@ -103,12 +82,21 @@ const api = {
     });
   },
 
+  // Delete form
   async deleteForm(id) {
     return await apiCall(`/api/forms/${id}`, {
       method: 'DELETE'
     });
   },
 
+  // ✅ Duplicate form (FIXED)
+  async duplicateForm(id) {
+    return await apiCall(`/api/forms/${id}/duplicate`, {
+      method: 'POST'
+    });
+  },
+
+  // Submit response
   async submitResponse(formId, values) {
     return await apiCall(`/api/forms/${formId}/submit`, {
       method: 'POST',
@@ -116,19 +104,59 @@ const api = {
     });
   },
 
-  async getResponses(formId) {
-    return await apiCall(`/api/forms/${formId}/responses`);
+  // Get responses for a form
+ async getResponses(formId) {
+  const responses = await apiCall(`/api/forms/${formId}/responses`);
+
+  return responses.map(response => ({
+    id: response._id,
+    submitted_at: response.createdAt || response.submitted_at,
+    values: response.values.reduce((acc, item) => {
+      acc[item.field_id] = item.value;
+      return acc;
+    }, {})
+  }));
+},
+  // Get all responses
+   async getAllResponses() {
+    const responses = await apiCall('/api/responses');
+
+    return responses.map(response => ({
+        id: response._id,
+        form_id: response.form_id,
+        submitted_at: response.createdAt || response.submitted_at,
+        values: response.values.reduce((acc, item) => {
+        acc[item.field_id] = item.value;
+        return acc;
+        }, {})
+    }));
+    },
+
+  // ✅ Stats (FIXED)
+  async getStats() {
+    try {
+      const forms = await this.getForms();
+      const responses = await this.getAllResponses();
+
+      return {
+        totalForms: forms.length,
+        totalResponses: responses.length,
+        activeForms: forms.filter(f => f.status === 'active').length
+      };
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+      return {
+        totalForms: 0,
+        totalResponses: 0,
+        activeForms: 0
+      };
+    }
   },
 
-  async getAllResponses() {
-    return await apiCall('/api/responses');
-  },
-
+  // Health check
   async healthCheck() {
     return await apiCall('/api/health');
   }
-
-  
 };
 
 export default api;
