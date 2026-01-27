@@ -1,20 +1,5 @@
 import mongoose from 'mongoose';
 
-const responseValueSchema = new mongoose.Schema({
-  field_id: {
-    type: mongoose.Schema.Types.ObjectId,
-    required: true,
-  },
-  field_label: {
-    type: String,
-    required: true,
-  },
-  value: {
-    type: mongoose.Schema.Types.Mixed,
-    required: true,
-  },
-});
-
 const responseSchema = new mongoose.Schema(
   {
     form_id: {
@@ -30,17 +15,19 @@ const responseSchema = new mongoose.Schema(
       type: String,
       default: 'anonymous',
     },
-    values: [responseValueSchema],
+    // Values structure:
+    // For regular sections: { field_id: value }
+    // For repeatable sections: { section_id: [{ field_id: value }, { field_id: value }] }
+    values: {
+      type: mongoose.Schema.Types.Mixed,
+      required: true,
+    },
     submitted_at: {
       type: Date,
       default: Date.now,
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-const Response = mongoose.model('Response', responseSchema);
-
-export default Response;
+export default mongoose.model('Response', responseSchema);

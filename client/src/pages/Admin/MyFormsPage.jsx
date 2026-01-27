@@ -4,7 +4,7 @@ import { Search, FileText, Plus } from "lucide-react";
 
 import Layout from "../../components/layout/Layout";
 import FormCard from "../../components/forms/FormCard";
-import Loader from "../../components/common/Loader";
+import {Loader} from "../../components/common/Loader";
 import api from "../../services/api";
 
 const MyFormsPage = () => {

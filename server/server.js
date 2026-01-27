@@ -1,26 +1,41 @@
 import express from 'express';
 import cors from 'cors';
-import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import connectDB from './configs/db.js';
 import formsRoutes from './routes/forms.routes.js';
 import responsesRoutes from './routes/responses.routes.js';
 
 dotenv.config();
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// DB
+// Connect to DB
 connectDB();
 
 // Middleware
-app.use(cors());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://localhost:3000'],
+  credentials: true
+}));
 
-// Routes
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// ⚠️ IMPORTANT: Serve uploaded files statically BEFORE API routes
+// This allows /uploads/filename.pdf to work
+const uploadsPath = path.join(__dirname, 'uploads');
+app.use('/uploads', express.static(uploadsPath));
+
+console.log('📁 Serving uploads from:', uploadsPath);
+
+// API Routes
 app.use('/api/forms', formsRoutes);
 app.use('/api/responses', responsesRoutes);
 
@@ -29,23 +44,56 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
     message: 'Server is running',
-    database: 'MongoDB',
+    database: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
+    timestamp: new Date().toISOString()
   });
 });
 
+// Root endpoint
 app.get('/', (req, res) => {
-  res.send('🚀 Server is live and running');
+  res.json({
+    message: '🚀 Server is live and running',
+    endpoints: {
+      health: '/api/health',
+      forms: '/api/forms',
+      responses: '/api/responses',
+      uploads: '/uploads'
+    }
+  });
+});
+
+// 404 handler - This must come AFTER all routes
+app.use((req, res) => {
+  res.status(404).json({
+    error: 'Route not found',
+    path: req.path,
+    method: req.method
+  });
+});
+
+// Error handler
+app.use((err, req, res, next) => {
+  console.error('Server Error:', err);
+  res.status(500).json({
+    error: err.message || 'Internal server error'
+  });
 });
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+const server = app.listen(PORT, () => {
+  console.log(`✅ Server running on http://localhost:${PORT}`);
+  console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
+  console.log(`📝 Forms API: http://localhost:${PORT}/api/forms`);
+  console.log(`📁 Uploads available at: http://localhost:${PORT}/uploads`);
 });
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
-  console.log('\nShutting down gracefully...');
+  console.log('\n🛑 Shutting down gracefully...');
+  server.close(() => {
+    console.log('✅ Server closed');
+  });
   await mongoose.connection.close();
-  console.log('MongoDB connection closed.');
+  console.log('✅ MongoDB connection closed');
   process.exit(0);
 });

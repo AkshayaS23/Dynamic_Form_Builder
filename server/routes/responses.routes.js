@@ -35,7 +35,10 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Response not found' });
     }
 
-    res.json({ message: 'Response deleted successfully' });
+    res.json({ 
+      message: 'Response deleted successfully',
+      id: req.params.id
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

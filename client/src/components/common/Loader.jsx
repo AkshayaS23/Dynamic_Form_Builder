@@ -5,7 +5,7 @@ import { AlertCircle } from "lucide-react";
 /**
  * Loader Component (DEFAULT EXPORT)
  */
-const Loader = ({ message = "Loading..." }) => {
+export const Loader = ({ message = "Loading..." }) => {
   return (
     <div className="min-h-screen bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
       <div className="text-center">
@@ -16,7 +16,7 @@ const Loader = ({ message = "Loading..." }) => {
   );
 };
 
-export default Loader;
+
 
 /**
  * Error Message Component (NAMED EXPORT)
