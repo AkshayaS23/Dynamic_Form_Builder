@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import connectDB from './configs/db.js';
 import formsRoutes from './routes/forms.routes.js';
 import responsesRoutes from './routes/responses.routes.js';
+import { uploadsDir } from './configs/multer.js';
 
 dotenv.config();
 
@@ -21,7 +22,12 @@ connectDB();
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000'],
+  origin: [
+    'http://localhost:5173', 
+    'http://localhost:3000',
+    'https://dynamic-form-builder-client.vercel.app',
+    /https:\/\/dynamic-form-builder-client.*\.vercel\.app$/ // For preview deployments
+  ],
   credentials: true
 }));
 
@@ -30,10 +36,9 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // ⚠️ IMPORTANT: Serve uploaded files statically BEFORE API routes
 // This allows /uploads/filename.pdf to work
-const uploadsPath = path.join(__dirname, 'uploads');
-app.use('/uploads', express.static(uploadsPath));
+app.use('/uploads', express.static(uploadsDir));
 
-console.log('📁 Serving uploads from:', uploadsPath);
+console.log('📁 Serving uploads from:', uploadsDir);
 
 // API Routes
 app.use('/api/forms', formsRoutes);
@@ -45,6 +50,8 @@ app.get('/api/health', (req, res) => {
     status: 'OK',
     message: 'Server is running',
     database: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
+    uploadDir: uploadsDir,
+    environment: process.env.VERCEL ? 'Vercel' : 'Local',
     timestamp: new Date().toISOString()
   });
 });
@@ -79,21 +86,26 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start server
-const server = app.listen(PORT, () => {
-  console.log(`✅ Server running on http://localhost:${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
-  console.log(`📝 Forms API: http://localhost:${PORT}/api/forms`);
-  console.log(`📁 Uploads available at: http://localhost:${PORT}/uploads`);
-});
+// Export for Vercel serverless
+export default app;
 
-// Graceful shutdown
-process.on('SIGINT', async () => {
-  console.log('\n🛑 Shutting down gracefully...');
-  server.close(() => {
-    console.log('✅ Server closed');
+// Start server only for local development
+if (!process.env.VERCEL) {
+  const server = app.listen(PORT, () => {
+    console.log(`✅ Server running on http://localhost:${PORT}`);
+    console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
+    console.log(`📝 Forms API: http://localhost:${PORT}/api/forms`);
+    console.log(`📁 Uploads available at: http://localhost:${PORT}/uploads`);
   });
-  await mongoose.connection.close();
-  console.log('✅ MongoDB connection closed');
-  process.exit(0);
-});
+
+  // Graceful shutdown
+  process.on('SIGINT', async () => {
+    console.log('\n🛑 Shutting down gracefully...');
+    server.close(() => {
+      console.log('✅ Server closed');
+    });
+    await mongoose.connection.close();
+    console.log('✅ MongoDB connection closed');
+    process.exit(0);
+  });
+}
